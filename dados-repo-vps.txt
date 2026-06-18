@@ -1,0 +1,56 @@
+DADOS DO REPO NA VPS - AUTOVIP
+==============================
+
+ROTA WEBHOOK
+  https://autovip.appzoi.com.br/webhook/inbound/YP-roJbtgU0XSUQiTb-TFr8mIu6lMzdm
+
+VPS (HOST LIVE)
+  IP        : 147.79.87.179 (VPS2)
+  SSH       : ssh root@147.79.87.179
+  DNS       : autovip.appzoi.com.br -> 147.79.87.179
+
+NGINX
+  vhost      : /etc/nginx/sites-available/autovip.appzoi.com.br.conf
+  enabled    : /etc/nginx/sites-enabled/autovip.appzoi.com.br.conf (symlink)
+  proxy_pass : http://127.0.0.1:8002
+  listen     : 80, 443 ssl (Certbot)
+
+DOCKER
+  container  : autovip_app_prod (id 6f2307ed71aa)
+  port map   : 127.0.0.1:8002 -> 8000/tcp
+  db         : autovip_postgres_prod (5432/tcp)
+
+REPO LOCAL NA VPS
+  path       : /opt/zaf-autovip
+  stack      : Python / FastAPI
+  git        : SEM .git (nenhum remote git no diretorio)
+  owner      : uid 501 / staff
+
+ARQUIVOS NO DIRETORIO
+  .claude/                  (dir)
+  .dockerignore
+  .env
+  .env.example
+  .gitignore
+  Dockerfile
+  README.md
+  app/                      (dir)
+  call-alinhamento.md
+  conversas.md
+  data/                     (dir)
+  docker-compose.prod.yml
+  docker-compose.yml
+  index-form.html
+  plan/                     (dir)
+  pyproject.toml
+  scripts/                  (dir)
+  tests/                    (dir)
+
+ROTA WEBHOOK/INBOUND - ARQUIVOS RELEVANTES
+  app/webhook.py            (handler principal)
+  app/runtime.py
+  app/amanda/runtime.py
+  app/orchestrator/concat.py
+  scripts/replay_real_convos.py
+  scripts/test_agno_runtime.py
+  tests/test_concat.py

@@ -1,0 +1,1 @@
+"""Amanda agent package."""

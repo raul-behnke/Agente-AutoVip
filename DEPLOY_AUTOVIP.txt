@@ -1,0 +1,123 @@
+==========================================================================
+RUNBOOK DE DEPLOY SEGURO — AutoVip (agente "Amanda")
+  (1) habilitar /export   (2) padronizar no servidor destino VPS2
+==========================================================================
+Servidor destino: VPS2 147.79.87.179 (root / R@ulcomec0c0)
+Caminho atual: /opt/zaf-autovip  (Docker Compose: autovip_app_prod + autovip_postgres_prod)
+Domínio: autovip.appzoi.com.br  → nginx → 127.0.0.1:8002 → container :8000
+
+>>> NOTA DE MIGRAÇÃO: AutoVip JÁ RESIDE no servidor destino (147.79.87.179).
+    "Mudança de servidor" NÃO requer mover host. Se o objetivo for apenas
+    PADRONIZAR (path/estrutura/backup completo), siga a Seção 3 (sync local /
+    snapshot completo). Caso contrário, pular para a Seção 4 (/export).
+
+PRINCÍPIOS DE SEGURANÇA
+- Backup completo (código + volume do Postgres) antes de tudo.
+- Build em paralelo; só trocar quando o smoke passar. Rollback pronto.
+- Webhook do GHL inalterado. Sem perder dados do banco (volume).
+
+--------------------------------------------------------------------------
+0. PRÉ-CHECAGEM (baseline)
+--------------------------------------------------------------------------
+  cd /opt/zaf-autovip
+  docker ps --format '{{.Names}} {{.Ports}} {{.Status}}' | grep autovip
+  grep -E "DATABASE_URL|GHL_PIT|WEBHOOK|PIPELINE" .env
+  # tabela canônica v2 deve existir: agent_events (+ llm_calls)
+  docker exec -i autovip_postgres_prod psql -U amanda -d amanda -c '\dt'
+
+--------------------------------------------------------------------------
+1. BACKUP + ROLLBACK
+--------------------------------------------------------------------------
+  ts=$(date +%s)
+  cp -r /opt/zaf-autovip /opt/zaf-autovip.bak.$ts
+  # dump do banco (dados de sessão/telemetria):
+  docker exec autovip_postgres_prod pg_dump -U amanda amanda > /opt/zaf-autovip.bak.$ts/amanda.sql
+  # backup do volume (alternativa):
+  docker run --rm -v autovip_pgdata:/v -v /opt:/bk alpine tar czf /bk/autovip_pgdata.$ts.tgz -C /v .
+  # ROLLBACK: docker compose down; restaurar pasta + volume; up -d.
+
+--------------------------------------------------------------------------
+2. (CASTRO-STYLE) MIGRAÇÃO ENTRE SERVIDORES — N/A para AutoVip
+--------------------------------------------------------------------------
+  AutoVip já está no destino. Pular. (Se um dia migrar de outra origem,
+  usar o mesmo procedimento do runbook do Castro: rsync -aHAX + migração de volume.)
+
+--------------------------------------------------------------------------
+3. SNAPSHOT COMPLETO (opcional — padronização/segurança total)
+--------------------------------------------------------------------------
+  # cópia integral de TODOS os arquivos (código + .env + compose + volume export):
+  rsync -aHAX --numeric-ids /opt/zaf-autovip/ /opt/_snapshots/zaf-autovip.$ts/
+  docker exec autovip_postgres_prod pg_dump -U amanda amanda \
+    > /opt/_snapshots/zaf-autovip.$ts/amanda.sql
+
+--------------------------------------------------------------------------
+4. ADICIONAR ENDPOINT /export (drop-in)
+--------------------------------------------------------------------------
+  # copiar hub/agent_export_template.py -> /opt/zaf-autovip/app/export_router.py
+  # registrar em app/main.py (após "app = FastAPI(...)"):
+  #   from app.export_router import router as export_router
+  #   app.include_router(export_router)
+  # .env (NÃO mexer no secret do webhook):
+  ZOI_EXPORT_SECRET=<openssl rand -hex 32>
+  EXPORT_TABLE=agent_events
+  # garantir psycopg[binary] na imagem (requirements). EXPORT_DSN: usar o host
+  # do Postgres do container (ex.: postgresql://amanda:amanda@postgres:5432/amanda)
+  # se DATABASE_URL apontar p/ "postgres" interno do compose.
+
+--------------------------------------------------------------------------
+5. DEPLOY (Docker — rebuild seguro)
+--------------------------------------------------------------------------
+  docker compose -f docker-compose.prod.yml build         # build sem derrubar
+  docker compose -f docker-compose.prod.yml up -d          # troca rápida
+  docker compose -f docker-compose.prod.yml logs -f --tail=50 autovip_app_prod
+  # se falhar: docker compose up -d usando imagem anterior (rollback) + restaurar pasta.
+
+--------------------------------------------------------------------------
+6. APONTAMENTOS antigo→novo (registrar p/ o Hub)
+--------------------------------------------------------------------------
+  - Domínio /export: https://autovip.appzoi.com.br/export/events
+  - nginx vhost: confirmar proxy_pass 127.0.0.1:8002 (sem mudança).
+  - GHL webhook inbound: URL/secret INALTERADOS.
+  - Postgres: dados preservados (mesmo volume autovip_pgdata).
+  - Secret de export: ZOI_EXPORT_SECRET (novo, dedicado).
+
+--------------------------------------------------------------------------
+7. CONECTAR NO HUB
+--------------------------------------------------------------------------
+  # hub/.env
+  AUTOVIP_URL=https://autovip.appzoi.com.br
+  AUTOVIP_SECRET=<mesmo ZOI_EXPORT_SECRET>
+  # registry.py: trocar "amanda-autovip" de PostgresAdapter para
+  #   SqliteExportAdapter(base_url=AUTOVIP_URL, secret=AUTOVIP_SECRET,
+  #     client="autovip", agent="amanda-autovip", auth="hmac_since")
+  # remover AUTOVIP_PG_DSN (não mais necessário).
+  python -m hub.collector.run --once
+
+==========================================================================
+RELATÓRIO DE VERIFICAÇÃO — AutoVip  (preencher e enviar ao Hub)
+==========================================================================
+INFRA / DADOS
+[ ] Backup pasta + dump amanda.sql + volume tgz criados (rollback pronto)
+[ ] Containers autovip_app_prod + autovip_postgres_prod "Up"/healthy
+[ ] Banco preservado: count de amanda_sessions_v2 igual ao baseline (sem perda)
+[ ] nginx → 127.0.0.1:8002 OK; TLS válido (certbot)
+
+ATENDIMENTO (★ crítico — não pode quebrar)
+[ ] Webhook inbound do GHL responde como antes (mesma URL/secret)
+[ ] Teste real: 1 mensagem WhatsApp → Amanda respondeu em bolhas
+[ ] Handoff/agendamento ainda funcionam (smoke)
+
+/EXPORT (novo)
+[ ] /export/events sem secret = 401
+[ ] /export/events com HMAC(ZOI_EXPORT_SECRET,"0") = 200, shape {"events","next_cursor"}
+[ ] Envelope canônico: event_id, schema_version=1, client="autovip",
+    agent="amanda-autovip", occurred_at, payload
+[ ] LLM_CALL com tokens + cost_brl + usd_brl_rate + pricing_version
+[ ] ZOI_EXPORT_SECRET ≠ secret do webhook
+
+HUB
+[ ] registry trocado p/ SqliteExportAdapter; AUTOVIP_PG_DSN removido
+[ ] Coletor ingeriu N eventos do AutoVip; cursor avança em pull seguinte (idempotente)
+[ ] /api/financeiro e /api/comercial do Hub mostram AutoVip com dados reais
+
+Anexar: imagem/commit, contagem sessões antes/depois, nº eventos ingeridos, custo.

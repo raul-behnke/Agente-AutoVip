@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: autovip_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: amanda
+      POSTGRES_PASSWORD: amanda
+      POSTGRES_DB: amanda
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: autovip_app_prod
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://amanda:amanda@postgres:5432/amanda
+    ports:
+      - "127.0.0.1:8002:8000"
+
+volumes:
+  pgdata: {}

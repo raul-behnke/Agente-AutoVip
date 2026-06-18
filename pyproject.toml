@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "amanda"
+version = "0.1.0"
+description = "Amanda — Auto Vip WhatsApp agent (Agno + FastAPI + GHL)."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "httpx",
+  "tenacity",
+  "loguru",
+  "pydantic-settings",
+  "agno",
+  "openai",
+  "prometheus-client",
+  "pyyaml",
+  "sqlalchemy",
+  "psycopg[binary]",
+  "psycopg_pool",
+  "python-multipart",
+  "pytz",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-asyncio",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
