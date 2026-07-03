@@ -428,3 +428,23 @@ def test_faq_tem_vende_carta():
 
 def test_instrucoes_citam_vende_carta():
     assert "vende_carta" in INSTRUCTIONS
+
+
+# --------------------------------------------------------------------------
+# Plano do lead: troca + resto com carta (intent = troca, sem financiamento)
+# --------------------------------------------------------------------------
+def test_forma_carta_nao_puxa_financiamento():
+    st = _troca_state(
+        modelo="Gol", ano=2015, km=90000,
+        quitado_ou_financiado="quitado", fotos_solicitadas=True,
+        forma_pagamento_diferenca="carta",
+    )
+    funil = funnel_for(st)
+    assert "financiamento.cpf" not in funil
+    assert missing_fields(st) == []  # coleta completa, sem CPF
+
+
+def test_intent_troca_aceito_em_frase_plano():
+    from app.amanda.tools import _intent_supported_by_msg
+    msg = "me chamo raul, sou de joinville, vocês aceitam carro na troca e o resto com carta contemplada?"
+    assert _intent_supported_by_msg("troca", msg) is True

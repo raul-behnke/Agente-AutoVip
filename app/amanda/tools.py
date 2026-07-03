@@ -266,7 +266,7 @@ def registrar_lead_info(
             "troca.modelo", "troca.ano", "troca.km",
             "troca.quitado_ou_financiado" (quitado|financiado),
             "troca.fotos_solicitadas" (true|false),
-            "troca.forma_pagamento_diferenca" (vista|financiamento|apenas_troca),
+            "troca.forma_pagamento_diferenca" (vista|financiamento|apenas_troca|carta),
             "financiamento.cpf", "financiamento.data_nascimento",
             "financiamento.entrada", "financiamento.parcela_desejada",
             "financiamento.cnh" (true|false),
