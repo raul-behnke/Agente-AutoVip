@@ -348,6 +348,36 @@ def _strip_wrong_deflexao(bubbles: list, state: dict) -> tuple[list, bool]:
     return new, changed
 
 
+# Contexto-fantasma: o modelo às vezes comenta "esse modelo é comum" / "esse
+# carro sai bastante" ANTES do lead dizer qual é o carro — alucinação. Se a
+# troca ainda não tem modelo, remove essa frase de contexto (mantém a pergunta).
+_PHANTOM_CTX = re.compile(r"\besse (modelo|carro|ve[ií]culo|ano|gol|onix|carr)")
+
+
+def _strip_phantom_context(bubbles: list, state: dict) -> tuple[list, bool]:
+    from app.amanda.state_schema import ensure_keys, get_dotted
+    st = ensure_keys(state)
+    if get_dotted(st, "troca.modelo") not in (None, ""):
+        return bubbles, False  # já sabe o modelo → comentário é legítimo
+    new: list = []
+    changed = False
+    for b in bubbles:
+        sents = _split_sentences(b.text)
+        kept = [s for s in sents
+                if s.strip().endswith("?") or not _PHANTOM_CTX.search(_norm(s))]
+        if len(kept) != len(sents):
+            changed = True
+            rest = " ".join(kept).strip()
+            if rest:
+                b.text = rest
+                new.append(b)
+        else:
+            new.append(b)
+    if not new:
+        return bubbles, False
+    return new, changed
+
+
 def _dedup_bubbles(bubbles: list) -> tuple[list, bool]:
     """Remove bolhas com texto idêntico/quase-idêntico (normalizado),
     mantendo a primeira ocorrência."""
@@ -396,6 +426,10 @@ def _run_pipeline(bubbles: list, state: dict) -> list:
     bubbles, echoed = _strip_echo(bubbles, state)
     if echoed:
         metrics.BUBBLE_VIOLATIONS.labels(kind="echo").inc()
+
+    bubbles, phantom = _strip_phantom_context(bubbles, state)
+    if phantom:
+        metrics.BUBBLE_VIOLATIONS.labels(kind="phantom_context").inc()
 
     bubbles, collapsed = _collapse_questions(bubbles)
     if collapsed:

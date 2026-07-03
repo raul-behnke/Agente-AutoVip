@@ -448,3 +448,27 @@ def test_intent_troca_aceito_em_frase_plano():
     from app.amanda.tools import _intent_supported_by_msg
     msg = "me chamo raul, sou de joinville, vocês aceitam carro na troca e o resto com carta contemplada?"
     assert _intent_supported_by_msg("troca", msg) is True
+
+
+# --------------------------------------------------------------------------
+# Contexto-fantasma: não comentar modelo antes do lead dizer
+# --------------------------------------------------------------------------
+def test_contexto_fantasma_removido_sem_modelo():
+    # lead só disse "quero trocar"; modelo desconhecido → "esse modelo é comum"
+    # é alucinação, deve sair; a pergunta fica.
+    st = ensure_keys({}); st["intencao"] = "troca"
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Boa, esse modelo é bem comum na troca aqui. Qual o modelo do seu atual?"),
+    ]), st)
+    txt = " ".join(b.text.lower() for b in out.bubbles)
+    assert "esse modelo é bem comum" not in txt
+    assert "modelo" in txt  # a pergunta "qual o modelo" permanece
+
+
+def test_contexto_modelo_mantido_quando_conhecido():
+    st = _troca_state(modelo="Gol")
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Boa, esse modelo sai bastante."),
+        Bubble(text="E o ano dele?"),
+    ]), st)
+    assert any("sai bastante" in b.text.lower() for b in out.bubbles)
