@@ -365,3 +365,30 @@ def test_has_real_outbound_ignora_inbound():
     from app.amanda.runtime import _has_real_outbound_text
     msgs = [{"direction": "inbound", "body": "oi quero um carro"}]
     assert _has_real_outbound_text(msgs) is False
+
+
+# --------------------------------------------------------------------------
+# Nota de escalonamento: uma só + rótulo "Escalonamento"
+# --------------------------------------------------------------------------
+def test_resumo_usa_escalonamento_nao_handoff():
+    from app.agent.state import SessionState, Collected
+    from app.orchestrator.dispatch import format_handoff_summary
+    txt = format_handoff_summary(SessionState(collected=Collected(nome="Raul")),
+                                 "coleta_completa")
+    assert "Motivo do escalonamento:" in txt
+    assert "handoff" not in txt.lower()
+
+
+def test_execute_handoff_gera_uma_nota_so():
+    # Garante que execute_handoff chama add_note UMA vez (via add_handoff_note),
+    # não duas (bug das notas duplicadas).
+    import asyncio
+    from unittest.mock import AsyncMock, patch
+    from app.agent.state import SessionState, Collected
+    from app.orchestrator import dispatch
+    with patch.object(dispatch.contacts, "add_note", new=AsyncMock(return_value={})) as m_note, \
+         patch.object(dispatch.contacts, "update_custom_fields", new=AsyncMock(return_value={})), \
+         patch.object(dispatch.contacts, "remove_tag", new=AsyncMock(return_value={})):
+        asyncio.run(dispatch.execute_handoff(
+            "C1", SessionState(collected=Collected(nome="Raul")), "coleta_completa"))
+        assert m_note.await_count == 1

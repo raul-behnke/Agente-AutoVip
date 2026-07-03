@@ -68,7 +68,7 @@ def format_handoff_summary(state: SessionState, reason: str) -> str:
     lines = [
         "Resumo do atendimento IA — Auto Vip",
         "",
-        f"Motivo do handoff: {reason}",
+        f"Motivo do escalonamento: {reason}",
         "",
         f"Nome: {c.nome or '-'}",
         f"Cidade: {c.cidade or '-'}",
@@ -162,10 +162,8 @@ def build_custom_fields(state: SessionState) -> list[dict]:
 
 async def execute_handoff(contact_id: str, state: SessionState, reason: str) -> None:
     summary = format_handoff_summary(state, reason)
-    try:
-        await contacts.add_note(contact_id, summary)
-    except Exception as e:
-        logger.exception("handoff add_note failed err={}", e)
+    # UMA nota só: a nota de escalonamento já contém o resumo + o @Ramon.
+    # (Antes havia também um add_note cru, gerando DUAS notas duplicadas.)
     try:
         await contacts.add_handoff_note(
             contact_id, summary, settings.ramon_user_id, mentioned_name="Ramon",
