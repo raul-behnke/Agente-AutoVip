@@ -463,8 +463,12 @@ async def process_turn(contact_id: str, ad_meta: dict[str, Any] | None = None) -
         _missing, _target, _sugestao = pick_next_question(current_state)
         if _sugestao:
             agent_input = (
-                f"{agent_input}\n\nPRÓXIMA PERGUNTA DO FUNIL (siga esta — ajuste "
-                f"só o tom, nunca o assunto): {_sugestao}"
+                f"{agent_input}\n\nPERGUNTA DE FECHAMENTO DO FUNIL (o ASSUNTO é "
+                f"fixo, ajuste só o tom): {_sugestao}\n"
+                "IMPORTANTE: se o lead trouxe uma PERGUNTA/DÚVIDA (disponibilidade, "
+                "preço, foto, como funciona etc.), RESPONDA ou deflita ELA PRIMEIRO "
+                "(consultar_faq / marcar_pendencia) e só ENTÃO feche com a pergunta "
+                "acima. NUNCA ignore a dúvida do lead pra ir direto ao funil."
             )
 
         # Coleta de funil completa → qualificado. Dedup: emite o evento/metrica
