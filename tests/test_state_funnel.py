@@ -74,13 +74,17 @@ def test_pick_next_question_advances_and_records():
 
 
 def test_pick_next_question_anti_repetition():
-    # mesmo sem coletar o campo, não sugere o mesmo perguntado no turno anterior
+    # Anti-repetição estilo AMC: mantém o foco no campo até 2x perguntado (a
+    # resposta do lead normalmente chega no turno seguinte); só PULA na 3ª.
     st = _state("financiamento")
     set_dotted(st, "lead.nome", "Raul")
     set_dotted(st, "lead.cidade", "Itajai")
-    _, first, _ = pick_next_question(st)          # cpf
-    _, second, _ = pick_next_question(st)         # deve pular cpf -> outro
-    assert first != second
+    _, first, _ = pick_next_question(st)          # cpf (foco)
+    assert first == "financiamento.cpf"
+    # simula cpf já perguntado 2x na janela (turnos reais interleavados) -> pula
+    st["last_asked"] = ["financiamento.cpf", "financiamento.cpf"]
+    _, skipped, _ = pick_next_question(st)
+    assert skipped != "financiamento.cpf"
 
 
 def test_pick_next_question_empty_when_complete():

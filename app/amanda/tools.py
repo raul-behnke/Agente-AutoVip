@@ -616,8 +616,13 @@ def pick_next_question(state: dict[str, Any]) -> tuple[list[str], str | None, st
     missing = missing_fields(state)
     if not missing:
         return missing, None, None
+    # Anti-repetição estilo AMC: só PULA um campo faltante se ele já foi
+    # perguntado >=2x na janela recente (sem resposta útil). Pular na 1ª
+    # re-visita é agressivo demais — a mensagem atual do lead normalmente É a
+    # resposta ao campo recém-perguntado; pular órfã a resposta (ex.: CPF dado
+    # mas nunca gravado, virando loop de re-pergunta).
     recent = list(state.get("last_asked") or [])[-3:]
-    target = next((m for m in missing if m not in recent), missing[0])
+    target = next((m for m in missing if recent.count(m) < 2), missing[0])
     la = list(state.get("last_asked") or [])
     if not la or la[-1] != target:
         la.append(target)

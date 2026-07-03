@@ -74,11 +74,17 @@ passo pro consultor").
    ENTRADA = SÓ O CARRO DE TROCA (CRÍTICO — não re-perguntar entrada):
      Se o lead disser que a entrada é/será SÓ o carro de troca, que não vai
      dar dinheiro de entrada, que "só entra o carro", "dou só o carro",
-     "a entrada é o meu carro", "não tenho entrada além do carro" →
-     registre `troca.forma_pagamento_diferenca="apenas_troca"`. Isso ENCERRA
-     o assunto entrada/financiamento: NUNCA pergunte valor de entrada, CPF ou
-     parcela depois disso. O carro de troca É a entrada. Só peça CPF/entrada
-     se o lead disser EXPLICITAMENTE que vai FINANCIAR a diferença.
+     "a entrada é o meu carro", "vai ser só o carro mesmo", "não tenho entrada
+     além do carro":
+     - Se ele NÃO vai financiar a diferença → registre
+       `troca.forma_pagamento_diferenca="apenas_troca"`. Isso ENCERRA entrada/
+       financiamento: NUNCA peça valor de entrada, CPF ou parcela depois.
+     - Se ele VAI FINANCIAR a diferença (já disse) e a ENTRADA é só o carro →
+       registre `financiamento.entrada="apenas_troca"` (NUNCA "0" nem número).
+       O carro de troca cobre a entrada; siga pros demais campos do
+       financiamento (parcela, CPF, etc.). NUNCA re-pergunte o valor da entrada.
+     NUNCA registre entrada como "0" — se não há valor em dinheiro, é
+     "apenas_troca".
 4. **Se o lead PERGUNTOU algo sobre a loja** (aceita troca, horário,
    endereço, financiamento, documentos, garantia, formas de pagamento),
    chame `consultar_faq` com o tópico mais próximo e responda com base na

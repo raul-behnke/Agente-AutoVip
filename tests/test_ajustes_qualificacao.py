@@ -201,6 +201,17 @@ def test_ordem_troca_sequencia_completa():
     ]
 
 
+def test_anti_repeticao_nao_pula_apos_uma_pergunta():
+    # Campo perguntado 1x (não 2x) NÃO deve ser pulado — senão órfã a resposta
+    # que o lead está dando agora (bug do CPF em produção).
+    st = _troca_state(modelo="Gol", ano=2015, km=90000,
+                      quitado_ou_financiado="quitado", fotos_solicitadas=True,
+                      forma_pagamento_diferenca="financiamento")
+    st["last_asked"] = ["financiamento.cpf"]  # perguntado 1x só
+    _missing, target, _sug = pick_next_question(st)
+    assert target == "financiamento.cpf"  # continua o foco, não pula
+
+
 def test_anti_repeticao_pula_campo_recente():
     # km é o primeiro faltante mas foi perguntado nos últimos turnos → pula
     st = _troca_state(modelo="Gol", ano=2015)
