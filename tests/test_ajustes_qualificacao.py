@@ -273,6 +273,25 @@ def test_eco_valor_literal_ainda_barrado():
     assert not any("2001" in t for t in textos)
 
 
+def test_pergunta_offscript_trocada_por_funil():
+    # "Ele é seu há quanto tempo?" não é do funil → trocada pela pergunta do
+    # funil, mantendo a bolha de contexto anterior.
+    st = _troca_state(modelo="Gol")  # próximo campo = troca.ano
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Boa, esse modelo sai bastante."),
+        Bubble(text="Ele é seu há quanto tempo?"),
+    ]), st)
+    textos = [b.text for b in out.bubbles]
+    assert not any("quanto tempo" in t.lower() for t in textos)
+    assert any("ano" in t.lower() for t in textos)  # virou a pergunta do funil
+
+
+def test_pergunta_offscript_porque_trocar():
+    st = _troca_state(modelo="Gol")
+    out = _run(TurnReply(bubbles=[Bubble(text="Por que você quer trocar?")]), st)
+    assert not any("por que" in b.text.lower() for b in out.bubbles)
+
+
 def test_transicao_contextual_com_pergunta_sobrevive():
     st = ensure_keys({}); st["intencao"] = "troca"
     out = _run(TurnReply(bubbles=[

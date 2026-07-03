@@ -119,15 +119,26 @@ _META_Q = re.compile(
     r"|gostaria de saber mais|precisa de mais (alguma )?(coisa|informa))"
 )
 
+# Perguntas FORA DO ROTEIRO (puxar-papo) que o modelo às vezes cria no tom
+# consultivo. Não são campos do funil → trocamos pela pergunta do funil.
+_OFFSCRIPT_Q = re.compile(
+    r"(ha quanto tempo|faz (quanto )?tempo que (tem|voce tem|e seu)"
+    r"|por que (voce )?(quer|decidiu|pensa em) troc|o que (te )?(fez|levou|motiv)"
+    r"|ja pensou em algum (modelo|carro)|qual (cor|a cor)"
+    r"|usa (muito|bastante) o carro|e pra voce ou pra (familia|alguem)"
+    r"|pra que (voce )?(usa|vai usar)|o que acha (do|de))"
+)
+
 
 def _fix_meta_question(bubbles: list, state: dict) -> tuple[list, bool]:
-    """Se a última bolha for meta-pergunta (oferta de explicar), troca pela
-    próxima pergunta de qualificação do funil. Se não houver pergunta pendente,
-    remove o '?' (vira afirmação)."""
+    """Se a última bolha for meta-pergunta (oferta de explicar) OU pergunta
+    fora do roteiro (puxar-papo), troca pela próxima pergunta de qualificação
+    do funil. Se não houver pergunta pendente, remove o '?' (vira afirmação)."""
     if not bubbles:
         return bubbles, False
     last = bubbles[-1]
-    if "?" not in last.text or not _META_Q.search(_norm(last.text)):
+    nlast = _norm(last.text)
+    if "?" not in last.text or not (_META_Q.search(nlast) or _OFFSCRIPT_Q.search(nlast)):
         return bubbles, False
     from app.amanda.state_schema import ensure_keys
     from app.amanda.tools import pick_next_question
