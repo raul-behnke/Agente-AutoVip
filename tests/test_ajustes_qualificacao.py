@@ -292,6 +292,40 @@ def test_pergunta_offscript_porque_trocar():
     assert not any("por que" in b.text.lower() for b in out.bubbles)
 
 
+def test_nao_repergunta_km_ja_preenchido():
+    # Lead deu modelo+km numa msg; modelo gravou os dois mas ainda perguntou km.
+    # Guard troca pela próxima pergunta real do funil (ano).
+    st = _troca_state(modelo="Gol", km=280000)  # ano vazio
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Boa, esse modelo é bem comum na troca aqui."),
+        Bubble(text="Ele tá com quantos km mais ou menos?"),
+    ]), st)
+    textos = " ".join(b.text.lower() for b in out.bubbles)
+    assert "km" not in textos          # não pergunta km de novo
+    assert "ano" in textos             # virou a próxima do funil
+
+
+def test_contexto_menciona_campo_mas_pergunta_e_outra():
+    # "esse modelo é comum" no contexto (modelo já preenchido) NÃO deve trocar
+    # a pergunta legítima de ano.
+    st = _troca_state(modelo="Gol")  # ano vazio
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Boa, esse modelo é bem comum na troca aqui."),
+        Bubble(text="E o ano dele?"),
+    ]), st)
+    textos = [b.text for b in out.bubbles]
+    assert any("ano" in t.lower() for t in textos)
+    assert any("modelo" in t.lower() for t in textos)  # contexto preservado
+
+
+def test_nao_repergunta_cidade_ja_preenchida():
+    st = ensure_keys({})
+    st["lead"]["nome"] = "Raul"; st["lead"]["cidade"] = "Joinville"
+    st["intencao"] = "troca"
+    out = _run(TurnReply(bubbles=[Bubble(text="De qual cidade você é?")]), st)
+    assert not any("cidade" in b.text.lower() for b in out.bubbles)
+
+
 def test_transicao_contextual_com_pergunta_sobrevive():
     st = ensure_keys({}); st["intencao"] = "troca"
     out = _run(TurnReply(bubbles=[

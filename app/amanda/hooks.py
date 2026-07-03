@@ -154,6 +154,55 @@ def _fix_meta_question(bubbles: list, state: dict) -> tuple[list, bool]:
     return bubbles, True
 
 
+# Pergunta que pede um campo JÁ preenchido (o lead informou vários dados numa
+# msg só, o modelo gravou tudo mas ainda perguntou um deles). Roda no post-hook
+# com o state PÓS-registro → troca pela próxima pergunta REAL do funil.
+_FIELD_Q_KEYWORDS = (
+    ("financiamento.cpf", re.compile(r"\bcpf\b")),
+    ("financiamento.parcela_desejada", re.compile(r"\bparcela\b")),
+    ("financiamento.entrada", re.compile(r"\bentrada\b")),
+    ("financiamento.data_nascimento", re.compile(r"nascimento|data de nasc")),
+    ("troca.km", re.compile(r"\b(km|quilomet)")),
+    ("troca.ano", re.compile(r"\bano\b")),
+    ("troca.modelo", re.compile(r"\bmodelo\b")),
+    ("lead.cidade", re.compile(r"\bcidade\b|de onde (voce )?(e|fala|vem)")),
+    ("lead.nome", re.compile(r"como (posso )?(te|lhe) chamar|seu nome|qual seu nome")),
+)
+
+
+def _fix_asks_filled_field(bubbles: list, state: dict) -> tuple[list, bool]:
+    from app.amanda.state_schema import ensure_keys, get_dotted
+    from app.amanda.tools import pick_next_question
+
+    if not bubbles:
+        return bubbles, False
+    last = bubbles[-1]
+    if "?" not in last.text:
+        return bubbles, False
+    # Só olha a(s) frase(s) INTERROGATIVA(s) — evita casar palavra-campo que
+    # aparece só no micro-contexto ("esse modelo é comum. E o ano?").
+    q_sentences = [s for s in _split_sentences(last.text) if s.strip().endswith("?")]
+    n = _norm(" ".join(q_sentences))
+    if not n:
+        return bubbles, False
+    st = ensure_keys(state)
+    for field, pat in _FIELD_Q_KEYWORDS:
+        val = get_dotted(st, field)
+        if val not in (None, "") and pat.search(n):
+            # a pergunta pede um campo já coletado → troca pela próxima do funil
+            try:
+                _, _, sugestao = pick_next_question(st)
+            except Exception:
+                sugestao = None
+            if sugestao and _norm(sugestao) != n:
+                last.text = sugestao
+                return bubbles, True
+            # sem próxima pergunta (funil completo) → vira afirmação neutra
+            last.text = "Perfeito, vamos seguir."
+            return bubbles, True
+    return bubbles, False
+
+
 # Muletas/preâmbulos vazios no INÍCIO da frase ("Agora me diz", "Me conta",
 # "Pra continuar, me diz"...). Removidos — pergunta vai direto. NÃO casa
 # justificativas específicas ("Pra adiantar a simulação, ...").
@@ -365,6 +414,10 @@ def _run_pipeline(bubbles: list, state: dict) -> list:
     bubbles, metafixed = _fix_meta_question(bubbles, state)
     if metafixed:
         metrics.BUBBLE_VIOLATIONS.labels(kind="meta_question").inc()
+
+    bubbles, filledfix = _fix_asks_filled_field(bubbles, state)
+    if filledfix:
+        metrics.BUBBLE_VIOLATIONS.labels(kind="asks_filled_field").inc()
 
     bubbles, added_q = _ensure_funnel_question(bubbles, state)
     if added_q:
