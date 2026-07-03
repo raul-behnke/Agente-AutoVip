@@ -130,6 +130,9 @@ def funnel_for(state: dict[str, Any]) -> tuple[str, ...]:
     intent = state.get("intencao")
     if intent == "troca":
         base = BASE_FIELDS + TROCA_FIELDS
+        # Só ramifica pro funil de financiamento se o lead disser que financia a
+        # DIFERENÇA. "apenas_troca" (o carro de troca cobre tudo / é a única
+        # entrada) e "vista" NÃO pedem CPF/entrada/parcela — não re-perguntar.
         if (state.get("troca") or {}).get("forma_pagamento_diferenca") == "financiamento":
             base = base + FINANCIAMENTO_FIELDS
         return base

@@ -21,9 +21,11 @@ def test_trims_to_three_bubbles():
 
 
 def test_question_only_in_last_bubble():
+    # Duas bolhas-pergunta → o pipeline colapsa mantendo só a ÚLTIMA pergunta
+    # (bolhas-pergunta anteriores são descartadas). Invariante: no máx. 1 "?".
     reply = TurnReply(bubbles=[Bubble(text="tudo bem?"), Bubble(text="e ai?")])
     out = _run(reply)
-    assert "?" not in out.bubbles[0].text
+    assert sum("?" in b.text for b in out.bubbles) == 1
     assert out.bubbles[-1].text.endswith("?")
 
 
@@ -35,10 +37,12 @@ def test_string_concat_json_recovered():
 
 
 def test_plain_string_fallback_single_bubble():
+    # Fallback de string crua + estado vazio: o pipeline mantém o texto e ANEXA
+    # a próxima pergunta do funil (mantém a qualificação viva).
     out = _run("texto solto sem json")
     assert isinstance(out, TurnReply)
-    assert len(out.bubbles) == 1
-    assert out.bubbles[0].text
+    assert out.bubbles[0].text == "texto solto sem json"
+    assert out.bubbles[-1].text.endswith("?")
 
 
 def test_valid_single_bubble_untouched():

@@ -386,6 +386,18 @@ async def process_turn(contact_id: str, ad_meta: dict[str, Any] | None = None) -
         # de registrar_lead_info validar valores contra o que foi realmente dito.
         current_state["_last_user_msg"] = turn_input
 
+        # Híbrido determinístico: o Python escolhe o PRÓXIMO campo do funil
+        # (ordem fixa + anti-repetição via last_asked) e injeta a pergunta como
+        # autoritativa. O LLM só veste de persona. Elimina na raiz repetir
+        # pergunta / pular etapa / escolher campo fora de ordem.
+        from app.amanda.tools import pick_next_question
+        _missing, _target, _sugestao = pick_next_question(current_state)
+        if _sugestao:
+            agent_input = (
+                f"{agent_input}\n\nPRÓXIMA PERGUNTA DO FUNIL (siga esta — ajuste "
+                f"só o tom, nunca o assunto): {_sugestao}"
+            )
+
         # Coleta de funil completa → qualificado. Dedup: emite o evento/metrica
         # UMA vez por conversa (antes incrementava todo turno → inflava).
         if not missing_fields(current_state) and not tel.get("qualified_emitted"):

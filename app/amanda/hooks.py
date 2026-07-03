@@ -185,6 +185,35 @@ def _ensure_funnel_question(bubbles: list, state: dict) -> tuple[list, bool]:
     return bubbles, True
 
 
+# Léxico proibido: a Auto Vip nunca chama o produto de "carrinho" — sempre
+# "carro"/"veículo". Rede de segurança determinística caso o modelo escorregue.
+_CARRINHO = re.compile(r"\bcarrinho(s)?\b", re.IGNORECASE)
+
+
+def _match_case(replacement: str, original: str) -> str:
+    if original.isupper():
+        return replacement.upper()
+    if original[:1].isupper():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement
+
+
+def _fix_lexicon(bubbles: list) -> tuple[list, bool]:
+    """Troca 'carrinho'→'carro' (e 'carrinhos'→'carros') em toda bolha."""
+    changed = False
+    for b in bubbles:
+        def _sub(m: "re.Match") -> str:
+            word = m.group(0)
+            plural = bool(m.group(1))
+            return _match_case("carros" if plural else "carro", word)
+
+        new_text = _CARRINHO.sub(_sub, b.text)
+        if new_text != b.text:
+            changed = True
+            b.text = new_text
+    return bubbles, changed
+
+
 def _dedup_bubbles(bubbles: list) -> tuple[list, bool]:
     """Remove bolhas com texto idêntico/quase-idêntico (normalizado),
     mantendo a primeira ocorrência."""
@@ -241,6 +270,10 @@ def _run_pipeline(bubbles: list, state: dict) -> list:
     bubbles, deduped = _dedup_bubbles(bubbles)
     if deduped:
         metrics.BUBBLE_VIOLATIONS.labels(kind="duplicate_bubble").inc()
+
+    bubbles, lexfixed = _fix_lexicon(bubbles)
+    if lexfixed:
+        metrics.BUBBLE_VIOLATIONS.labels(kind="lexicon_carrinho").inc()
 
     bubbles, metafixed = _fix_meta_question(bubbles, state)
     if metafixed:

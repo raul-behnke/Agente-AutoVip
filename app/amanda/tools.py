@@ -266,7 +266,7 @@ def registrar_lead_info(
             "troca.modelo", "troca.ano", "troca.km",
             "troca.quitado_ou_financiado" (quitado|financiado),
             "troca.fotos_solicitadas" (true|false),
-            "troca.forma_pagamento_diferenca" (vista|financiamento),
+            "troca.forma_pagamento_diferenca" (vista|financiamento|apenas_troca),
             "financiamento.cpf", "financiamento.data_nascimento",
             "financiamento.entrada", "financiamento.parcela_desejada",
             "financiamento.cnh" (true|false),
@@ -635,7 +635,10 @@ _SUGESTOES = {
     "troca.quitado_ou_financiado": "Tá quitado ou ainda financiado?",
     "troca.fotos_solicitadas": "Consegue me mandar umas fotos dele?",
     "troca.forma_pagamento_diferenca": "Como pretende pagar a diferença, à vista ou financiando?",
-    "financiamento.cpf": "Pra adiantar a simulação no banco, me passa seu CPF?",
+    "financiamento.cpf": (
+        "Certo, Eu vou fazer uma simulação de parcela pra você e conseguir a "
+        "melhor proposta. Me passa seu CPF e data de nascimento por gentileza"
+    ),
     "financiamento.data_nascimento": "Sua data de nascimento?",
     "financiamento.entrada": "Quanto consegue dar de entrada?",
     "financiamento.parcela_desejada": "Que valor de parcela tá pensando?",
