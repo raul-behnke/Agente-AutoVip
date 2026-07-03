@@ -1,0 +1,49 @@
+# FAQ da Auto Vip — consultado via tool `consultar_faq`.
+# Cada chave é um tópico canônico. Valor = resposta curta em PT-BR
+# que a Amanda pode adaptar (mas o conteúdo factual vem daqui).
+
+pega_troca: |
+  Sim, pegamos carro na troca. O consultor avalia o seu certinho e te passa
+  o valor de avaliação direto.
+
+horario: |
+  Atendemos seg-sex 9h às 18h; sábado 9h às 12h.
+
+endereco: |
+  Rua Irineu Bornhausen, 973 — Bairro São João, Itajaí/SC.
+
+financiamento_condicoes: |
+  Trabalhamos com vários bancos. A entrada e as parcelas dependem da análise
+  de crédito, o consultor faz a simulação no banco direto.
+
+documentos_financiamento: |
+  Pra simulação: CPF, RG, comprovante de renda e residência, e CNH.
+
+formas_pagamento: |
+  À vista, financiado, com carro na troca ou com carta de crédito contemplada.
+
+vende_carta: |
+  A gente não vende carta de crédito nem consórcio — aqui a gente trabalha com
+  a venda dos veículos. Mas se você já tem uma carta contemplada, aceitamos ela
+  como forma de pagamento na compra do carro.
+
+garantia: |
+  Os veículos têm checagem mecânica antes da venda. Garantia específica o
+  consultor te detalha conforme o modelo.
+
+pega_fotos: |
+  Pode mandar quantas fotos conseguir do carro — frente, traseira, lateral,
+  painel e a parte de baixo se possível. Ajuda na avaliação.
+
+precisa_cnh_financiar: |
+  Pra financiar geralmente sim, precisa de CNH no nome de quem vai assinar.
+  O consultor confirma os documentos certinhos pelo banco.
+
+dia_visita: |
+  Pode passar nos horários de atendimento. O consultor te recebe assim que
+  você chegar.
+
+# Fallback de respostas não cobertas pelo FAQ
+_deflexao_default: |
+  Essa parte quem confirma certinho é o consultor. Deixei anotado aqui e ele
+  te passa direto.

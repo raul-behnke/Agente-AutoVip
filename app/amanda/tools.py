@@ -414,6 +414,10 @@ def consultar_faq(topico: str) -> dict[str, Any]:
             "financiamento_condicoes" — como funciona financiamento.
             "documentos_financiamento" — quais documentos pro financiamento.
             "formas_pagamento" — formas de pagamento aceitas.
+            "vende_carta" — se a loja VENDE carta de crédito/consórcio (NÃO
+                vende; só aceita carta contemplada como pagamento). Use quando
+                o lead perguntar "vocês vendem carta?", "trabalham com
+                consórcio?", "emitem carta de crédito?".
             "garantia" — política de garantia.
             "pega_fotos" — SÓ pra orientar o lead a ENVIAR fotos do carro de
                 TROCA dele (avaliação). NUNCA use quando o lead pede pra VER

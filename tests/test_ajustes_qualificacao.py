@@ -412,3 +412,19 @@ def test_execute_handoff_gera_uma_nota_so():
         asyncio.run(dispatch.execute_handoff(
             "C1", SessionState(collected=Collected(nome="Raul")), "coleta_completa"))
         assert m_note.await_count == 1
+
+
+# --------------------------------------------------------------------------
+# FAQ vende_carta (vender != aceitar)
+# --------------------------------------------------------------------------
+def test_faq_tem_vende_carta():
+    from app.amanda.tools import _load_local_faq
+    faq = _load_local_faq()
+    assert "vende_carta" in faq
+    txt = faq["vende_carta"].lower()
+    assert "não vende" in txt or "nao vende" in txt
+    assert "contemplada" in txt
+
+
+def test_instrucoes_citam_vende_carta():
+    assert "vende_carta" in INSTRUCTIONS
