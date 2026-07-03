@@ -126,7 +126,7 @@ _OFFSCRIPT_Q = re.compile(
     r"|por que (voce )?(quer|decidiu|pensa em) troc|o que (te )?(fez|levou|motiv)"
     r"|ja pensou em algum (modelo|carro)|qual (cor|a cor)"
     r"|usa (muito|bastante) o carro|e pra voce ou pra (familia|alguem)"
-    r"|pra que (voce )?(usa|vai usar)|o que acha (do|de))"
+    r"|pra que (voce )?(usa|vai usar))"
 )
 
 
