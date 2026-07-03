@@ -61,6 +61,36 @@ def test_carro_normal_intocado():
 # --------------------------------------------------------------------------
 # Frase exata do CPF
 # --------------------------------------------------------------------------
+def test_cpf_duas_bolhas_colapsa_para_canonica():
+    # Caso real do bug: paráfrase curta + canônica → 1 bolha só, a canônica.
+    curta = Bubble(text="Me passa seu CPF e data de nascimento por gentileza.")
+    canon = Bubble(text=_SUGESTOES["financiamento.cpf"])
+    out = _run(TurnReply(bubbles=[curta, canon]))
+    cpf_bolhas = [b for b in out.bubbles if "cpf" in b.text.lower()]
+    assert len(cpf_bolhas) == 1
+    assert cpf_bolhas[0].text == _SUGESTOES["financiamento.cpf"]
+
+
+def test_cpf_parafrase_unica_vira_canonica():
+    out = _run(TurnReply(bubbles=[Bubble(text="me passa seu CPF aí")]))
+    cpf_bolhas = [b for b in out.bubbles if "cpf" in b.text.lower()]
+    assert len(cpf_bolhas) == 1
+    assert cpf_bolhas[0].text == _SUGESTOES["financiamento.cpf"]
+
+
+def test_cpf_nao_anexa_pergunta_extra():
+    # Estado com funil incompleto + só a bolha de CPF (sem "?") NÃO deve ganhar
+    # uma pergunta de funil anexada depois.
+    st = _troca_state(
+        modelo="Gol", ano=2015, km=90000,
+        quitado_ou_financiado="quitado", fotos_solicitadas=True,
+        forma_pagamento_diferenca="financiamento",
+    )
+    out = _run(TurnReply(bubbles=[Bubble(text=_SUGESTOES["financiamento.cpf"])]), st)
+    assert len(out.bubbles) == 1
+    assert out.bubbles[0].text == _SUGESTOES["financiamento.cpf"]
+
+
 def test_sugestao_cpf_frase_exata():
     esperado = (
         "Certo, Eu vou fazer uma simulação de parcela pra você e conseguir a "

@@ -174,8 +174,10 @@ def _ensure_funnel_question(bubbles: list, state: dict) -> tuple[list, bool]:
         return bubbles, False
     if not missing_fields(st):
         return bubbles, False  # funil completo → oferta de visita/handoff cuida
-    if any("?" in b.text for b in bubbles):
-        return bubbles, False  # já tem pergunta
+    # "Já tem pergunta" = tem "?" OU já contém um pedido de campo canônico sem
+    # "?" (ex.: a frase de CPF termina em "por gentileza", sem interrogação).
+    if any("?" in b.text for b in bubbles) or any(_CPF_ASK.search(b.text) for b in bubbles):
+        return bubbles, False
     _, _, sugestao = pick_next_question(st)
     if not sugestao:
         return bubbles, False
@@ -212,6 +214,31 @@ def _fix_lexicon(bubbles: list) -> tuple[list, bool]:
             changed = True
             b.text = new_text
     return bubbles, changed
+
+
+# Pedido de CPF: frase canônica obrigatória. O modelo às vezes gera uma
+# paráfrase curta E a canônica (2 bolhas), ou só parafraseia. Este guard força
+# UMA única bolha de CPF, exatamente a frase canônica.
+_CPF_ASK = re.compile(r"\bcpf\b", re.IGNORECASE)
+
+
+def _canonicalize_cpf_ask(bubbles: list) -> tuple[list, bool]:
+    from app.amanda.tools import _SUGESTOES
+    canonical = _SUGESTOES["financiamento.cpf"]
+    out: list = []
+    seen = False
+    changed = False
+    for b in bubbles:
+        if _CPF_ASK.search(b.text):
+            if seen:
+                changed = True  # descarta bolha de CPF redundante
+                continue
+            seen = True
+            if b.text.strip() != canonical:
+                b.text = canonical
+                changed = True
+        out.append(b)
+    return out, changed
 
 
 def _dedup_bubbles(bubbles: list) -> tuple[list, bool]:
@@ -274,6 +301,10 @@ def _run_pipeline(bubbles: list, state: dict) -> list:
     bubbles, lexfixed = _fix_lexicon(bubbles)
     if lexfixed:
         metrics.BUBBLE_VIOLATIONS.labels(kind="lexicon_carrinho").inc()
+
+    bubbles, cpffixed = _canonicalize_cpf_ask(bubbles)
+    if cpffixed:
+        metrics.BUBBLE_VIOLATIONS.labels(kind="cpf_ask_canonicalized").inc()
 
     bubbles, metafixed = _fix_meta_question(bubbles, state)
     if metafixed:
