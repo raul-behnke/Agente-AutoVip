@@ -241,6 +241,44 @@ def _canonicalize_cpf_ask(bubbles: list) -> tuple[list, bool]:
     return out, changed
 
 
+# Deflexão indevida: quando a Amanda ACABOU de perguntar um valor de funil
+# (parcela/entrada) e o lead RESPONDEU com o valor, o modelo às vezes trata a
+# resposta como "pergunta de preço" e deflita ("quem confirma é o consultor").
+# Isso é errado — o lead só respondeu. Deflexão sobre esse valor só cabe se o
+# lead PERGUNTAR o valor (msg com "?").
+_DEFLEXAO_SIG = re.compile(
+    r"(quem confirma|o consultor|pro consultor|"
+    r"consultor (te|confirma|passa|detalha|ver|responder)|deixa (eu )?adiantar)"
+)
+_VALUE_ASK_FIELDS = {
+    "financiamento.parcela_desejada": ("parcela",),
+    "financiamento.entrada": ("entrada",),
+}
+
+
+def _strip_wrong_deflexao(bubbles: list, state: dict) -> tuple[list, bool]:
+    la = state.get("last_asked") or []
+    if not la:
+        return bubbles, False
+    topics = _VALUE_ASK_FIELDS.get(la[-1])
+    if not topics:
+        return bubbles, False
+    msg = _norm(state.get("_last_user_msg") or "")
+    if not msg or "?" in msg:
+        return bubbles, False  # lead PERGUNTOU o valor → deflexão é legítima
+    new: list = []
+    changed = False
+    for b in bubbles:
+        n = _norm(b.text)
+        if _DEFLEXAO_SIG.search(n) and any(t in n for t in topics):
+            changed = True
+            continue  # descarta deflexão indevida sobre o valor que o lead deu
+        new.append(b)
+    if not new:
+        return bubbles, False  # nunca esvazia a resposta
+    return new, changed
+
+
 def _dedup_bubbles(bubbles: list) -> tuple[list, bool]:
     """Remove bolhas com texto idêntico/quase-idêntico (normalizado),
     mantendo a primeira ocorrência."""
@@ -305,6 +343,10 @@ def _run_pipeline(bubbles: list, state: dict) -> list:
     bubbles, cpffixed = _canonicalize_cpf_ask(bubbles)
     if cpffixed:
         metrics.BUBBLE_VIOLATIONS.labels(kind="cpf_ask_canonicalized").inc()
+
+    bubbles, defstripped = _strip_wrong_deflexao(bubbles, state)
+    if defstripped:
+        metrics.BUBBLE_VIOLATIONS.labels(kind="wrong_deflexao").inc()
 
     bubbles, metafixed = _fix_meta_question(bubbles, state)
     if metafixed:

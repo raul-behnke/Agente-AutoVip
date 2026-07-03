@@ -91,6 +91,32 @@ def test_cpf_nao_anexa_pergunta_extra():
     assert out.bubbles[0].text == _SUGESTOES["financiamento.cpf"]
 
 
+def test_deflexao_parcela_removida_quando_lead_responde():
+    # Amanda perguntou a parcela; lead respondeu com valor → deflexão indevida
+    # deve ser removida, mantendo a próxima pergunta.
+    st = ensure_keys({})
+    st["last_asked"] = ["financiamento.parcela_desejada"]
+    st["_last_user_msg"] = "No máximo 1300"
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Sobre o valor da parcela, quem confirma certinho é o consultor Ramon."),
+        Bubble(text="Você já tem CNH?"),
+    ]), st)
+    textos = " ".join(b.text.lower() for b in out.bubbles)
+    assert "quem confirma" not in textos
+    assert any("cnh" in b.text.lower() for b in out.bubbles)
+
+
+def test_deflexao_parcela_mantida_quando_lead_pergunta():
+    # Lead PERGUNTOU o valor → deflexão é legítima, não remove.
+    st = ensure_keys({})
+    st["last_asked"] = ["financiamento.parcela_desejada"]
+    st["_last_user_msg"] = "Quanto vai ficar a parcela?"
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Sobre o valor da parcela, quem confirma certinho é o consultor Ramon."),
+    ]), st)
+    assert any("quem confirma" in b.text.lower() for b in out.bubbles)
+
+
 def test_sugestao_cpf_frase_exata():
     esperado = (
         "Certo, Eu vou fazer uma simulação de parcela pra você e conseguir a "
