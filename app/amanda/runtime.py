@@ -10,6 +10,7 @@ from typing import Any
 from loguru import logger
 
 from app import metrics
+from app.amanda import greeting
 from app.amanda.agent import get_agent, MODEL_ID
 from app.amanda.schemas import TurnReply
 from app.amanda.state_schema import ensure_keys, missing_fields
@@ -328,6 +329,72 @@ def _legacy_state_for_handoff(state: dict[str, Any]) -> SessionState:
     )
 
 
+def _load_state(agent, contact_id: str, conversation_id: str) -> tuple[dict | None, dict[str, Any]]:
+    """Carrega o session_state persistido (Agno db) e devolve (prev, merged)."""
+    from agno.db.base import SessionType
+    db_session = agent.db.get_session(session_id=contact_id, session_type=SessionType.AGENT)
+    prev_state = None
+    if db_session is not None:
+        sd = getattr(db_session, "session_data", None) or {}
+        prev_state = sd.get("session_state") if isinstance(sd, dict) else None
+    current_state = ensure_keys(prev_state)
+    current_state["conversation_id"] = conversation_id  # persiste p/ join CRM↔sessão
+    return prev_state, current_state
+
+
+def _has_real_outbound_text(messages: list[dict]) -> bool:
+    """True se já existe uma mensagem de TEXTO enviada pela loja (saudação já
+    dada por fora). Ignora activity records (opportunity/appointment/etc.)."""
+    for m in messages:
+        if concat._is_activity(m):
+            continue
+        if (m.get("direction") or "").lower() != "outbound":
+            continue
+        body = (m.get("body") or "").strip()
+        if body and body.lower() != "opportunity created":
+            return True
+    return False
+
+
+async def _send_greeting(
+    agent, contact_id: str, conversation_id: str,
+    state: dict[str, Any], ad_meta: dict[str, Any] | None,
+) -> None:
+    """Envia a saudação inicial UMA vez e marca `greeted=True` (persistido
+    ANTES do envio, pra blindar contra disparos concorrentes do webhook)."""
+    _seed_ad_meta(state, ad_meta or {})
+    state["greeted"] = True
+    tel = state.setdefault("telemetry", {})
+    emit_started = not tel.get("started_emitted")
+    tel["started_emitted"] = True
+    try:
+        await agent.aupdate_session_state(
+            {
+                "greeted": True,
+                "conversation_id": conversation_id,
+                "telemetry": tel,
+                "ad_meta": state.get("ad_meta") or {},
+            },
+            session_id=contact_id,
+        )
+    except Exception as e:
+        logger.warning("runtime.greeting_persist_failed contact_id={} err={}", contact_id, e)
+    if emit_started:
+        await emit_event(
+            "CONVERSATION_STARTED",
+            contact_id=contact_id,
+            conversation_id=conversation_id,
+            session_id=contact_id,
+            payload={"greeted": True, "ad_meta": state.get("ad_meta") or {}},
+        )
+    sending_flags[contact_id] = True
+    try:
+        await asyncio.shield(sender.send_blocks(contact_id, [greeting.GREETING_TEXT]))
+    finally:
+        sending_flags[contact_id] = False
+    logger.info("runtime.greeting_sent contact_id={}", contact_id)
+
+
 async def process_turn(contact_id: str, ad_meta: dict[str, Any] | None = None) -> None:
     try:
         conversation_id = await conversations.search_conversation(contact_id)
@@ -338,8 +405,17 @@ async def process_turn(contact_id: str, ad_meta: dict[str, Any] | None = None) -
         messages = await conversations.get_messages(conversation_id)
         pending = concat.extract_pending_inbounds(messages)
         if not pending:
-            logger.info("runtime.no_pending contact_id={}", contact_id)
-            metrics.TURNS.labels(result="no_pending").inc()
+            # Sem mensagem do lead ainda. Se o contato nunca foi saudado (e a
+            # loja não mandou saudação por fora), a Amanda envia a saudação
+            # inicial ela mesma — uma única vez (flag `greeted`).
+            agent = get_agent()
+            _prev, greet_state = _load_state(agent, contact_id, conversation_id)
+            if not greet_state.get("greeted") and not _has_real_outbound_text(messages):
+                await _send_greeting(agent, contact_id, conversation_id, greet_state, ad_meta)
+                metrics.TURNS.labels(result="greeted").inc()
+            else:
+                logger.info("runtime.no_pending contact_id={}", contact_id)
+                metrics.TURNS.labels(result="no_pending").inc()
             return
         turn_input, _ = await concat.build_turn_input(
             pending, contact_id=contact_id, conversation_id=conversation_id
@@ -353,14 +429,7 @@ async def process_turn(contact_id: str, ad_meta: dict[str, Any] | None = None) -
         agent = get_agent()
 
         # Carrega session_state atual via Agno (db lookup) e aplica reopen/seed.
-        from agno.db.base import SessionType
-        db_session = agent.db.get_session(session_id=contact_id, session_type=SessionType.AGENT)
-        prev_state = None
-        if db_session is not None:
-            sd = getattr(db_session, "session_data", None) or {}
-            prev_state = sd.get("session_state") if isinstance(sd, dict) else None
-        current_state = ensure_keys(prev_state)
-        current_state["conversation_id"] = conversation_id  # persiste p/ join CRM↔sessão
+        prev_state, current_state = _load_state(agent, contact_id, conversation_id)
         reopened = _maybe_reopen(current_state, messages)
         _seed_ad_meta(current_state, ad_meta or {})
 

@@ -171,3 +171,35 @@ def test_instrucoes_tem_frase_cpf():
 
 def test_instrucoes_tem_apenas_troca():
     assert "apenas_troca" in INSTRUCTIONS
+
+
+# --------------------------------------------------------------------------
+# Saudação enviada pelo agente
+# --------------------------------------------------------------------------
+def test_greeting_texto_exato():
+    from app.amanda.greeting import GREETING_TEXT
+    assert GREETING_TEXT == (
+        "Olá! 😊 Meu nome é Amanda e falo aqui da AutoVip. Tudo bem com você? "
+        "Para começarmos, pode me dizer seu nome e de qual cidade está falando?"
+    )
+
+
+def test_has_real_outbound_ignora_activity_e_opportunity():
+    from app.amanda.runtime import _has_real_outbound_text
+    msgs = [
+        {"direction": "outbound", "body": "Opportunity created"},
+        {"direction": "outbound", "type": 26, "body": "Appointment"},
+    ]
+    assert _has_real_outbound_text(msgs) is False
+
+
+def test_has_real_outbound_detecta_texto_da_loja():
+    from app.amanda.runtime import _has_real_outbound_text
+    msgs = [{"direction": "outbound", "body": "Olá! Meu nome é Amanda"}]
+    assert _has_real_outbound_text(msgs) is True
+
+
+def test_has_real_outbound_ignora_inbound():
+    from app.amanda.runtime import _has_real_outbound_text
+    msgs = [{"direction": "inbound", "body": "oi quero um carro"}]
+    assert _has_real_outbound_text(msgs) is False
