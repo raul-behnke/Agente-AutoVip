@@ -79,12 +79,12 @@ def test_pick_next_question_anti_repetition():
     st = _state("financiamento")
     set_dotted(st, "lead.nome", "Raul")
     set_dotted(st, "lead.cidade", "Itajai")
-    _, first, _ = pick_next_question(st)          # cpf (foco)
-    assert first == "financiamento.cpf"
-    # simula cpf já perguntado 2x na janela (turnos reais interleavados) -> pula
-    st["last_asked"] = ["financiamento.cpf", "financiamento.cpf"]
+    _, first, _ = pick_next_question(st)          # entrada (1º campo financ.)
+    assert first == "financiamento.entrada"
+    # simula entrada já perguntada 2x na janela (turnos reais) -> pula
+    st["last_asked"] = ["financiamento.entrada", "financiamento.entrada"]
     _, skipped, _ = pick_next_question(st)
-    assert skipped != "financiamento.cpf"
+    assert skipped != "financiamento.entrada"
 
 
 def test_pick_next_question_empty_when_complete():

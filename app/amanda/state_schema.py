@@ -87,12 +87,15 @@ TROCA_FIELDS = (
     "troca.forma_pagamento_diferenca",
 )
 
+# Ordem: qualificação leve PRIMEIRO (entrada/parcela/CNH), dado sensível
+# (CPF/nascimento) por ÚLTIMO — só na hora de fechar a simulação. Pedir CPF
+# logo de cara assusta o lead (reação "isso é golpe").
 FINANCIAMENTO_FIELDS = (
-    "financiamento.cpf",
-    "financiamento.data_nascimento",
     "financiamento.entrada",
     "financiamento.parcela_desejada",
     "financiamento.cnh",
+    "financiamento.cpf",
+    "financiamento.data_nascimento",
 )
 
 VISTA_FIELDS = ("vista_confirmado",)

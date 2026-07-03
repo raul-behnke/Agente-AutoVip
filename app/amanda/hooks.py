@@ -283,6 +283,12 @@ def _fix_lexicon(bubbles: list) -> tuple[list, bool]:
 # paráfrase curta E a canônica (2 bolhas), ou só parafraseia. Este guard força
 # UMA única bolha de CPF, exatamente a frase canônica.
 _CPF_ASK = re.compile(r"\bcpf\b", re.IGNORECASE)
+# Reassurance / tratamento de objeção sobre dados — NÃO forçar a frase canônica
+# aqui (senão destrói o "nada de golpe, preciso pra consultar com os bancos").
+_CPF_REASSURE = re.compile(
+    r"(golpe|fraude|seguro|tranquil|imagina|nada de|consultar (a )?simula|"
+    r"com os bancos|direto com|seus dados (est|ficam)|pode (ficar|confiar))"
+)
 
 
 def _canonicalize_cpf_ask(bubbles: list) -> tuple[list, bool]:
@@ -292,7 +298,7 @@ def _canonicalize_cpf_ask(bubbles: list) -> tuple[list, bool]:
     seen = False
     changed = False
     for b in bubbles:
-        if _CPF_ASK.search(b.text):
+        if _CPF_ASK.search(b.text) and not _CPF_REASSURE.search(_norm(b.text)):
             if seen:
                 changed = True  # descarta bolha de CPF redundante
                 continue

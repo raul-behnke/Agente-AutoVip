@@ -117,6 +117,26 @@ def test_deflexao_parcela_mantida_quando_lead_pergunta():
     assert any("quem confirma" in b.text.lower() for b in out.bubbles)
 
 
+def test_primeiro_carro_nao_pede_cpf_primeiro():
+    # primeiro_carro → funil financiamento, mas CPF é por ÚLTIMO; a 1ª pergunta
+    # do financiamento é entrada, não CPF.
+    st = ensure_keys({})
+    st["intencao"] = "primeiro_carro"
+    st["lead"]["nome"] = "Vitoria"; st["lead"]["cidade"] = "Joinville"
+    _missing, target, _sug = pick_next_question(st)
+    assert target == "financiamento.entrada"
+    assert target != "financiamento.cpf"
+
+
+def test_reassurance_golpe_nao_vira_canonica():
+    # Bolha de reassurance que menciona CPF + golpe NÃO deve ser forçada à frase
+    # canônica (senão destrói o tratamento da objeção).
+    txt = ("Imagina, nada de golpe. Preciso do seu CPF só pra consultar a "
+           "simulação direto com os bancos e trazer a melhor proposta.")
+    out = _run(TurnReply(bubbles=[Bubble(text=txt)]))
+    assert any("golpe" in b.text.lower() for b in out.bubbles)
+
+
 def test_sugestao_cpf_frase_exata():
     esperado = (
         "Certo, Eu vou fazer uma simulação de parcela pra você e conseguir a "
@@ -207,9 +227,9 @@ def test_anti_repeticao_nao_pula_apos_uma_pergunta():
     st = _troca_state(modelo="Gol", ano=2015, km=90000,
                       quitado_ou_financiado="quitado", fotos_solicitadas=True,
                       forma_pagamento_diferenca="financiamento")
-    st["last_asked"] = ["financiamento.cpf"]  # perguntado 1x só
+    st["last_asked"] = ["financiamento.entrada"]  # perguntado 1x só
     _missing, target, _sug = pick_next_question(st)
-    assert target == "financiamento.cpf"  # continua o foco, não pula
+    assert target == "financiamento.entrada"  # continua o foco, não pula
 
 
 def test_anti_repeticao_pula_campo_recente():
