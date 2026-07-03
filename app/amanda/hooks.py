@@ -52,21 +52,24 @@ def _collected_values(state: dict) -> list[str]:
 
 
 def _is_echo_sentence(sent: str, vals: list[str]) -> bool:
-    """True se a frase é papagaio: 'anotado', abertura de eco com dado, ou
-    re-declaração ('você está buscando um X', 'você é de Y'). Pergunta nunca
-    é eco."""
+    """True se a frase é papagaio: 'anotado', ECO LITERAL de um valor coletado
+    (devolve o modelo/cidade/nome ou um número que o lead deu), ou re-declaração
+    ('você está buscando um X', 'você é de Y'). Pergunta nunca é eco.
+
+    IMPORTANTE (tom natural): reconhecimento COM contexto genérico NÃO é eco —
+    "boa, esse modelo é comum na troca" é permitido. Só barramos quando a frase
+    DEVOLVE o VALOR literal (texto coletado ou dígito), não a palavra-campo."""
     s = sent.strip()
     n = _norm(s)
     if "anotad" in n or "anotei" in n:
         return True
     if s.endswith("?"):
         return False
-    has_data = (
-        any(c.isdigit() for c in s)
-        or any(v in n for v in vals)
-        or any(re.search(rf"\b{w}\b", n) for w in _FIELD_WORDS)
-    )
-    if _ECHO_OPENER.match(s) and has_data:
+    # Eco literal = repete um VALOR de texto coletado (nome/cidade/modelo/veic)
+    # ou um número que o lead informou. NÃO usa palavra-campo genérica (senão
+    # mata "esse modelo é comum", que é comentário contextual, não eco).
+    has_literal_value = any(c.isdigit() for c in s) or any(v in n for v in vals)
+    if _ECHO_OPENER.match(s) and has_literal_value:
         return True
     if _RESTATE.search(n):
         return True

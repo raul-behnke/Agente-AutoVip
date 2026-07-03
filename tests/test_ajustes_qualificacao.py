@@ -241,6 +241,48 @@ def test_instrucoes_tem_apenas_troca():
 
 
 # --------------------------------------------------------------------------
+# Tom natural: reconhecimento contextual sobrevive; eco literal é barrado
+# --------------------------------------------------------------------------
+def _st_modelo(modelo="Gol"):
+    st = ensure_keys({})
+    set_dotted(st, "troca.modelo", modelo)
+    st["intencao"] = "troca"
+    return st
+
+
+def test_comentario_contextual_sobrevive():
+    # "esse modelo é comum" NÃO é eco (não devolve o valor) → deve ficar.
+    st = _st_modelo("Gol")
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Boa, esse modelo é bem comum na troca aqui."),
+        Bubble(text="Ele tá com quantos km mais ou menos?"),
+    ]), st)
+    textos = [b.text for b in out.bubbles]
+    assert "Boa, esse modelo é bem comum na troca aqui." in textos
+    assert any("km" in t.lower() for t in textos)
+
+
+def test_eco_valor_literal_ainda_barrado():
+    # devolver o valor ("Gol 2001") continua sendo eco → removido.
+    st = _st_modelo("Gol")
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Show, um Gol 2001!"),
+        Bubble(text="Ele tá quitado?"),
+    ]), st)
+    textos = [b.text for b in out.bubbles]
+    assert not any("2001" in t for t in textos)
+
+
+def test_transicao_contextual_com_pergunta_sobrevive():
+    st = ensure_keys({}); st["intencao"] = "troca"
+    out = _run(TurnReply(bubbles=[
+        Bubble(text="Show, atendemos bastante a região. De qual cidade você é?"),
+    ]), st)
+    assert "atendemos" in out.bubbles[0].text.lower()
+    assert out.bubbles[0].text.endswith("?")
+
+
+# --------------------------------------------------------------------------
 # Saudação enviada pelo agente
 # --------------------------------------------------------------------------
 def test_greeting_texto_exato():
