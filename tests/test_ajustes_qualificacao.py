@@ -472,3 +472,9 @@ def test_contexto_modelo_mantido_quando_conhecido():
         Bubble(text="E o ano dele?"),
     ]), st)
     assert any("sai bastante" in b.text.lower() for b in out.bubbles)
+
+
+def test_instrucoes_nome_coincide_consultor():
+    # regra: nome do lead pode ser "Ramon" (coincide com consultor)
+    low = INSTRUCTIONS.lower()
+    assert "coincidir com o do consultor" in low or "coincide com o do consultor" in low
